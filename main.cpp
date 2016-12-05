@@ -1,4 +1,5 @@
 #include <iostream>
+#include <functional>
 #include <string>
 #include <thread>
 #include "client.hpp"
@@ -9,13 +10,14 @@ int main(void) {
   quit = client.connect();
 
   if (!quit) {
-    std::thread messageParser(client.parseMessages());
-    messageParser.join();
+    std::thread receiver = client.messageParser();
+    receiver.detach();
   }
 
+  client.login();
+
   std::string input;
-  while (std::cin >> input || quit) {
-    std::cout << "Read input" << std::endl;
+  while (!quit && std::cin >> input) {
     quit = client.parseString(input);
   }
 }
