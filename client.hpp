@@ -5,23 +5,31 @@
 #include <string>
 #include <vector>
 #include <thread>
+
+class Client;
+
 #include "connector.hpp"
 
 class Client {
 private:
-  Connector connector;
+  std::unique_ptr<Connector> connector = nullptr;
   std::vector<std::string> users;
   std::mutex cm;
-  void parseMessages();
-  bool parseCommand(std::string);
+  bool isConnected = false;
+  bool quit = false;
+  void parseCommand(std::string);
   void sendMessage(std::string);
+  void listUsers();
 
 public:
-  bool connect();
+  Client();
+  void connect();
   void login();
   std::thread messageParser();
-  bool parseString(std::string);
-  void listUsers();
+  void parseString(std::string);
+  void addUser(const char * name);
+  void removeUser(const char * name);
+  bool isQuit() { return this->quit; }
 };
 
 #endif
