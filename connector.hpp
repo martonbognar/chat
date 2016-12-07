@@ -8,6 +8,7 @@ class Connector {
 private:
   Client * client;
   sf::TcpSocket socket;
+  bool isConnected = false;
   void sendBytes(const char * input, size_t length);
 
   enum MessageTypes {
@@ -26,7 +27,7 @@ private:
 
 public:
   Connector(Client * client);
-  bool connect(const char * ip, unsigned int port);
+  void connect(const char * ip, unsigned int port);
   void receiveMessage();
   void parseMessage(const char * input);
   void sendHello();
@@ -35,7 +36,7 @@ public:
   void sendMessage(const char * message);
   void sendPing();
   void sendPong();
-  void logout();
+  void disconnect();
   ~Connector();
 };
 

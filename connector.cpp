@@ -2,6 +2,7 @@
 #include <iostream>
 #include <memory>
 #include <cstring>
+#include <exception>
 #include "client.hpp"
 #include "connector.hpp"
 
@@ -9,18 +10,21 @@ Connector::Connector(Client * client_) : client{client_} {}
 
 void Connector::sendBytes(const char * data, size_t length) {
   if (socket.send(data, length) != sf::Socket::Done) {
-    std::cout << "Error while sending!" << std::endl;
+    throw std::system_error{};
   }
 }
 
-bool Connector::connect(const char * ip, unsigned int port) {
+void Connector::connect(const char * ip, unsigned int port) {
+  if (isConnected) {
+    disconnect();
+  }
+
   sf::Socket::Status status = socket.connect(ip, port, sf::seconds(10));
   if (status != sf::Socket::Done) {
-    std::cout << "Error while connecting!" << std::endl;
-    return false;
+    throw std::system_error{};
   } else {
     sendHello();
-    return true;
+    isConnected = true;
   }
 }
 
@@ -132,13 +136,17 @@ void Connector::sendPing() {
   sendBytes(buf, 2);
 }
 
-void Connector::logout() {
+void Connector::disconnect() {
   char buf[2];
   buf[0] = MESSAGE_LOGOUT;
   buf[1] = MESSAGE_TERMINATOR;
   sendBytes(buf, 2);
+  socket.disconnect();
+  isConnected = false;
 }
 
 Connector::~Connector() {
-  // TODO: kapcsolat megszakitasa
+  if (isConnected) {
+    disconnect();
+  }
 }

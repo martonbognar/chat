@@ -1,33 +1,24 @@
 #include <iostream>
 #include <mutex>
+#include <cstring>
 #include <string>
 #include <vector>
+#include <sstream>
 #include "client.hpp"
 
 Client::Client() : connector{std::make_unique<Connector>(this)} {}
 
-void Client::connect() {
-  std::string ip;
-  unsigned int port;
-
-  std::cout << "IP?" << std::endl;
-  std::cin >> ip;
-  std::cout << "Port?" << std::endl;
-  std::cin >> port;
-  if (connector->connect(ip.c_str(), port)) {
+void Client::connect(const char * ip, unsigned int port) {
+  try {
+    connector->connect(ip, port);
     this->isConnected = true;
     std::thread parser = messageParser();
     parser.detach();
     users.push_back("(You)");
+  } catch (std::system_error & e) {
+    std::lock_guard<std::mutex> guard{cm};
+    std::cout << "Could not connect to the server!" << std::endl;
   }
-}
-
-void Client::login() {
-  std::string neptun, password;
-  std::cin >> neptun;
-  connector->sendNeptun(neptun.c_str());
-  std::cin >> password;
-  connector->sendPassword(password.c_str());
 }
 
 std::thread Client::messageParser() {
@@ -35,7 +26,30 @@ std::thread Client::messageParser() {
 }
 
 void Client::sendMessage(std::string input) {
-  connector->sendMessage(input.c_str());
+  try {
+    connector->sendMessage(input.c_str());
+  } catch (std::system_error & e) {
+    std::lock_guard<std::mutex> guard{cm};
+    std::cout << "Could not send the message (are you connected?)" << std::endl;
+  }
+}
+
+void Client::sendNeptun(std::string input) {
+  try {
+    connector->sendNeptun(input.c_str());
+  } catch (std::system_error & e) {
+    std::lock_guard<std::mutex> guard{cm};
+    std::cout << "Could not send the message (are you connected?)" << std::endl;
+  }
+}
+
+void Client::sendPassword(std::string input) {
+  try {
+    connector->sendPassword(input.c_str());
+  } catch (std::system_error & e) {
+    std::lock_guard<std::mutex> guard{cm};
+    std::cout << "Could not send the message (are you connected?)" << std::endl;
+  }
 }
 
 void Client::parseString(std::string input) {
@@ -46,30 +60,57 @@ void Client::parseString(std::string input) {
   }
 }
 
+bool Client::checkStringStart(std::string haystack, std::string needle) {
+  return haystack.size() >= needle.size() && haystack.substr(0, needle.size()).compare(needle) == 0;
+}
+
 void Client::parseCommand(std::string input) {
-  if (input.compare("quit") == 0) {
-    connector->logout();
+  if (checkStringStart(input, "quit")) {
+    connector->disconnect();
     this->isConnected = false;
     this->quit = true;
     return;
   }
 
-  if (input.compare("logout") == 0) {
-    connector->logout();
+  if (checkStringStart(input, "disconnect")) {
+    connector->disconnect();
     this->isConnected = false;
     return;
   }
 
-  if (input.compare("ping") == 0) {
+  if (checkStringStart(input, "ping")) {
     connector->sendPing();
     return;
   }
 
-  if (input.compare("listusers") == 0) {
+  if (checkStringStart(input, "users")) {
     listUsers();
     return;
   }
 
+  if (checkStringStart(input, "connect")) {
+    char ip[256];
+    unsigned int port;
+    sscanf(input.c_str(), "%*s %[^:]:%u", ip, &port);
+    connect(ip, port);
+    return;
+  }
+
+  if (checkStringStart(input, "neptun")) {
+    char neptun[7];
+    sscanf(input.c_str(), "%*s %s", neptun);
+    sendNeptun(neptun);
+    return;
+  }
+
+  if (checkStringStart(input, "password")) {
+    char password[7];
+    sscanf(input.c_str(), "%*s %s", password);
+    sendPassword(password);
+    return;
+  }
+
+  std::lock_guard<std::mutex> guard{cm};
   std::cout << "Invalid command!" << std::endl;
 }
 

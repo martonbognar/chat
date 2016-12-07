@@ -7,11 +7,9 @@
 int main(void) {
   Client client;
 
-  client.connect();
-  client.login();
-
   std::string input;
-  while (!client.isQuit() && std::cin >> input) {
+  while (!client.isQuit()) {
+    std::getline(std::cin, input);
     client.parseString(input);
   }
 }

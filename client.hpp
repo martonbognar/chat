@@ -17,14 +17,22 @@ private:
   std::mutex cm;
   bool isConnected = false;
   bool quit = false;
+
+  void connect(const char * ip, unsigned int port);
   void parseCommand(std::string);
   void sendMessage(std::string);
+  void sendNeptun(std::string);
+  void sendPassword(std::string);
   void listUsers();
+  void printServerMessage(std::string);
+  void printClientMessage(std::string);
+  void printUserMessage(std::string);
+  void printHelp();
+  void printWelcome();
+  bool checkStringStart(std::string haystack, std::string needle);
 
 public:
   Client();
-  void connect();
-  void login();
   std::thread messageParser();
   void parseString(std::string);
   void addUser(const char * name);
