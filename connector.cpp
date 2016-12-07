@@ -2,6 +2,7 @@
 #include <iostream>
 #include <memory>
 #include <cstring>
+#include <string>
 #include <exception>
 #include "client.hpp"
 #include "connector.hpp"
@@ -32,8 +33,9 @@ void Connector::receiveMessage() {
   char data[256];
   size_t received;
   while (true) {
-    if (socket.receive(data, 256, received) != sf::Socket::Done) {
-    } else {
+    if (socket.receive(data, 256, received) == sf::Socket::Done) {
+      // std::thread parser(&Connector::parseMessage, this, copy);
+      // parser.detach();
       parseMessage(data);
     }
   }
@@ -51,31 +53,29 @@ void Connector::parseMessage(const char * input) {
 
   switch (input[0]) {
     case MESSAGE_HELLO:
-      std::cout << "Hello: " << copy + 1 << std::endl;
+      client->printServerMessage(copy + 1);
       break;
     case MESSAGE_SERVER:
-      std::cout << "Szerver uzenet: " << copy + 1 << std::endl;
+      client->printServerMessage(copy + 1);
       break;
     case MESSAGE_MESSAGE:
-      std::cout << copy + 1 << std::endl;
+      client->printUserMessage(copy + 1);
       break;
     case MESSAGE_PING:
       sendPong();
-      std::cout << "[ping-pong]" << std::endl;
+      client->printServerMessage("[ping-pong]");
       break;
     case MESSAGE_PONG:
-      std::cout << "Pong!" << std::endl;
+      client->printServerMessage("[pong]");
       break;
     case MESSAGE_LOGIN:
       client->addUser(copy + 1);
-      std::cout << "Belepes: " << copy + 1 << std::endl;
       break;
     case MESSAGE_LEAVE:
       client->removeUser(copy + 1);
-      std::cout << "Kilepes: " << copy + 1 << std::endl;
       break;
     default:
-      std::cout << "Could not decipher" << std::endl;
+      client->printServerMessage("Unknown message received!");
   }
 }
 
@@ -106,10 +106,12 @@ void Connector::sendPassword(const char * password) {
   sendBytes(buf, 8);
 }
 
-void Connector::sendMessage(const char * message) {
-  int length = strlen(message);
-  if (length >= 220) {
-    std::cout << "Message too long, did not send." << std::endl;
+void Connector::sendMessage(std::string message) {
+  int length = message.size();
+  std::cout << "sender" << std::endl;
+  if (length > 200) {
+    sendMessage(message.substr(0, 200));
+    sendMessage(message.substr(200));
   } else {
     auto buf = std::make_unique<char[]>(length + 2);
     buf[0] = MESSAGE_MESSAGE;

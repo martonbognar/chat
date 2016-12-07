@@ -6,7 +6,13 @@
 #include <sstream>
 #include "client.hpp"
 
-Client::Client() : connector{std::make_unique<Connector>(this)} {}
+Client::Client() : connector{std::make_unique<Connector>(this)} {
+  printWelcome();
+}
+
+void Client::printWelcome() {
+  printUserMessage(Messages::WELCOME);
+}
 
 void Client::connect(const char * ip, unsigned int port) {
   try {
@@ -16,8 +22,7 @@ void Client::connect(const char * ip, unsigned int port) {
     parser.detach();
     users.push_back("(You)");
   } catch (std::system_error & e) {
-    std::lock_guard<std::mutex> guard{cm};
-    std::cout << "Could not connect to the server!" << std::endl;
+    printClientMessage(Messages::CONNECTION_FAILED);
   }
 }
 
@@ -25,30 +30,57 @@ std::thread Client::messageParser() {
   return std::thread{[=] { connector->receiveMessage(); }};
 }
 
+void Client::printServerMessage(std::string input) {
+  std::lock_guard<std::mutex> guard{cm};
+  std::cout << "[server] " << input << std::endl;
+}
+
+void Client::printClientMessage(std::string input) {
+  std::lock_guard<std::mutex> guard{cm};
+  std::cout << "[client] " << input << std::endl;
+}
+
+void Client::printUserMessage(std::string input) {
+  std::lock_guard<std::mutex> guard{cm};
+  std::cout << input << std::endl;
+}
+
 void Client::sendMessage(std::string input) {
+  if (!isConnected) {
+    printClientMessage(Messages::CONNECTION_REQUIRED);
+    return;
+  }
+
   try {
     connector->sendMessage(input.c_str());
   } catch (std::system_error & e) {
-    std::lock_guard<std::mutex> guard{cm};
-    std::cout << "Could not send the message (are you connected?)" << std::endl;
+    printClientMessage(Messages::SENDING_FAILED);
   }
 }
 
 void Client::sendNeptun(std::string input) {
+  if (!isConnected) {
+    printClientMessage(Messages::CONNECTION_REQUIRED);
+    return;
+  }
+
   try {
     connector->sendNeptun(input.c_str());
   } catch (std::system_error & e) {
-    std::lock_guard<std::mutex> guard{cm};
-    std::cout << "Could not send the message (are you connected?)" << std::endl;
+    printClientMessage(Messages::SENDING_FAILED);
   }
 }
 
 void Client::sendPassword(std::string input) {
+  if (!isConnected) {
+    printClientMessage(Messages::CONNECTION_REQUIRED);
+    return;
+  }
+
   try {
     connector->sendPassword(input.c_str());
   } catch (std::system_error & e) {
-    std::lock_guard<std::mutex> guard{cm};
-    std::cout << "Could not send the message (are you connected?)" << std::endl;
+    printClientMessage(Messages::SENDING_FAILED);
   }
 }
 
@@ -79,11 +111,21 @@ void Client::parseCommand(std::string input) {
   }
 
   if (checkStringStart(input, "ping")) {
+    if (!isConnected) {
+      printClientMessage(Messages::CONNECTION_REQUIRED);
+      return;
+    }
+
     connector->sendPing();
     return;
   }
 
   if (checkStringStart(input, "users")) {
+    if (!isConnected) {
+      printClientMessage(Messages::CONNECTION_REQUIRED);
+      return;
+    }
+
     listUsers();
     return;
   }
@@ -110,15 +152,37 @@ void Client::parseCommand(std::string input) {
     return;
   }
 
-  std::lock_guard<std::mutex> guard{cm};
-  std::cout << "Invalid command!" << std::endl;
+  if (checkStringStart(input, "help")) {
+    printHelp();
+    return;
+  }
+
+  printClientMessage(Messages::INVALID_COMMAND);
 }
 
 void Client::listUsers() {
-  std::lock_guard<std::mutex> guard{cm};
-  for (auto & user : users) {
-    std::cout << user << std::endl;
+  if (!isConnected) {
+    printClientMessage(Messages::CONNECTION_REQUIRED);
+    return;
   }
+
+  printClientMessage("Currently online users:");
+  for (auto & user : users) {
+    printClientMessage(user);
+  }
+}
+
+void Client::printHelp() {
+  printClientMessage("Messages starting with a / are treated as commands, others as messages.");
+  printClientMessage("Available commands:");
+  printClientMessage("/connect address:port");
+  printClientMessage("/disconnect");
+  printClientMessage("/help");
+  printClientMessage("/neptun NEPTUN");
+  printClientMessage("/password NUTPEN");
+  printClientMessage("/ping");
+  printClientMessage("/quit");
+  printClientMessage("/users");
 }
 
 void Client::addUser(const char * name) {

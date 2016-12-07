@@ -33,7 +33,7 @@ public:
   void sendHello();
   void sendNeptun(const char * neptun);
   void sendPassword(const char * password);
-  void sendMessage(const char * message);
+  void sendMessage(std::string message);
   void sendPing();
   void sendPong();
   void disconnect();
