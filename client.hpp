@@ -30,9 +30,9 @@ private:
 
   struct Messages {
     static constexpr auto CONNECTION_FAILED = "Could not connect to the server!";
+    static constexpr auto CONNECTION_INTERRUPTED = "The connection closed unexpectedly!";
     static constexpr auto CONNECTION_REQUIRED = "You need to connect to a server before using this command.";
     static constexpr auto INVALID_COMMAND = "Invalid command! Type /help for help.";
-    static constexpr auto SENDING_FAILED = "Could not send the message!";
     static constexpr auto WELCOME = "Welcome to the client! Type /help for help.";
   };
 

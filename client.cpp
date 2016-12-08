@@ -54,7 +54,8 @@ void Client::sendMessage(std::string input) {
   try {
     connector->sendMessage(input.c_str());
   } catch (std::system_error & e) {
-    printClientMessage(Messages::SENDING_FAILED);
+    printClientMessage(Messages::CONNECTION_INTERRUPTED);
+    isConnected = false;
   }
 }
 
@@ -67,7 +68,8 @@ void Client::sendNeptun(std::string input) {
   try {
     connector->sendNeptun(input.c_str());
   } catch (std::system_error & e) {
-    printClientMessage(Messages::SENDING_FAILED);
+    printClientMessage(Messages::CONNECTION_INTERRUPTED);
+    isConnected = false;
   }
 }
 
@@ -80,7 +82,8 @@ void Client::sendPassword(std::string input) {
   try {
     connector->sendPassword(input.c_str());
   } catch (std::system_error & e) {
-    printClientMessage(Messages::SENDING_FAILED);
+    printClientMessage(Messages::CONNECTION_INTERRUPTED);
+    isConnected = false;
   }
 }
 
@@ -98,14 +101,28 @@ bool Client::checkStringStart(std::string haystack, std::string needle) {
 
 void Client::parseCommand(std::string input) {
   if (checkStringStart(input, "quit")) {
-    connector->disconnect();
-    this->isConnected = false;
+    if (isConnected) {
+        try {
+          connector->disconnect();
+        } catch (std::system_error & e) {
+          printClientMessage(Messages::CONNECTION_INTERRUPTED);
+        }
+      this->isConnected = false;
+    }
     this->quit = true;
     return;
   }
 
   if (checkStringStart(input, "disconnect")) {
-    connector->disconnect();
+    if (!isConnected) {
+      return;
+    }
+
+    try {
+      connector->disconnect();
+    } catch (std::system_error & e) {
+      printClientMessage(Messages::CONNECTION_INTERRUPTED);
+    }
     this->isConnected = false;
     return;
   }
@@ -116,7 +133,12 @@ void Client::parseCommand(std::string input) {
       return;
     }
 
-    connector->sendPing();
+    try {
+      connector->sendPing();
+    } catch (std::system_error & e) {
+      printClientMessage(Messages::CONNECTION_INTERRUPTED);
+      this->isConnected = false;
+    }
     return;
   }
 
@@ -187,12 +209,16 @@ void Client::printHelp() {
 
 void Client::addUser(const char * name) {
   users.push_back(name);
+  std::string stringName{name};
+  printClientMessage(stringName + " has joined the server");
 }
 
 void Client::removeUser(const char * name) {
   for (size_t i = 0; i < users.size(); ++i) {
     if (users[i].compare(name) == 0) {
       users.erase(users.begin() + i);
+      std::string stringName{name};
+      printClientMessage(stringName + " has left the server");
       return;
     }
   }
