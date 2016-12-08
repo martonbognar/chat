@@ -2,6 +2,7 @@
 #define connector_h
 
 #include <SFML/Network.hpp>
+#include <memory>
 #include "client.hpp"
 
 class Connector {
@@ -29,7 +30,7 @@ public:
   Connector(Client * client);
   void connect(const char * ip, unsigned int port);
   void receiveMessage();
-  void parseMessage(const char * input);
+  void parseMessage(std::unique_ptr<char[]> copy);
   void sendHello();
   void sendNeptun(const char * neptun);
   void sendPassword(const char * password);

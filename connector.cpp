@@ -34,16 +34,15 @@ void Connector::receiveMessage() {
   size_t received;
   while (true) {
     if (socket.receive(data, 256, received) == sf::Socket::Done) {
-      // std::thread parser(&Connector::parseMessage, this, copy);
-      // parser.detach();
-      parseMessage(data);
+      auto copy = std::make_unique<char[]>(256);
+      strcpy(copy.get(), data);
+      std::thread parser(&Connector::parseMessage, this, std::move(copy));
+      parser.detach();
     }
   }
 }
 
-void Connector::parseMessage(const char * input) {
-  char copy[256];
-  strcpy(copy, input);
+void Connector::parseMessage(std::unique_ptr<char[]> copy) {
   int i = 0;
   while (copy[i] != MESSAGE_TERMINATOR && i < 256) {
     ++i;
@@ -51,15 +50,15 @@ void Connector::parseMessage(const char * input) {
 
   copy[i] = '\0';
 
-  switch (input[0]) {
+  switch (copy[0]) {
     case MESSAGE_HELLO:
-      client->printServerMessage(copy + 1);
+      client->printServerMessage(copy.get() + 1);
       break;
     case MESSAGE_SERVER:
-      client->printServerMessage(copy + 1);
+      client->printServerMessage(copy.get() + 1);
       break;
     case MESSAGE_MESSAGE:
-      client->printUserMessage(copy + 1);
+      client->printUserMessage(copy.get() + 1);
       break;
     case MESSAGE_PING:
       sendPong();
@@ -69,10 +68,10 @@ void Connector::parseMessage(const char * input) {
       client->printServerMessage("[pong]");
       break;
     case MESSAGE_LOGIN:
-      client->addUser(copy + 1);
+      client->addUser(copy.get() + 1);
       break;
     case MESSAGE_LEAVE:
-      client->removeUser(copy + 1);
+      client->removeUser(copy.get() + 1);
       break;
     default:
       client->printServerMessage("Unknown message received!");
@@ -108,7 +107,6 @@ void Connector::sendPassword(const char * password) {
 
 void Connector::sendMessage(std::string message) {
   int length = message.size();
-  std::cout << "sender" << std::endl;
   if (length > 200) {
     sendMessage(message.substr(0, 200));
     sendMessage(message.substr(200));
